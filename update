@@ -1,33 +1,67 @@
 #!/usr/bin/env python
 import os
+import shutil
+import subprocess
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'clone')));
+import tempfile
 
-from fabric.colors import cyan, red
-from fabfile import deploy
+from fabric.colors import cyan, green, red
 
 
-# Override os.environ['ENVIRONMENT'] with $PWD info
-environ = os.getcwd().split('/')[-2]
-if environ in ('dev', 'staging', 'production'):
-    os.environ['ENVIRONMENT'] =  environ
-else:
-    print red('Unknown environment')
-    sys.exit(2)
+def abort(message, code, clone=None):
+    print red(message)
+    if clone is not None:
+        shutil.rmtree(clone)
+    sys.exit(code)
 
 
 def parse_git_ref(git_ref):
+    """
+    Return the reference type and name
+    Example:
+        refs/head/master -> branch, master
+        refs/tags/1.0 -> tags, 1.0
+    """
     ref = git_ref.split('/')
     if len(ref) < 3:
-        return git_ref
-
-    # Production only deploys tags
-    if os.environ.get('ENVIRONMENT', 'unknown') =='production' and ref[1] != 'tags':
-        print red('Only tags can be deployed to production')
-        sys.exit(1)
+        raise ValueError('invalid ref string')
 
     # Otherwise, return the branch name
-    return ref[2]
+    ref_type = 'branch' if ref[1] == 'head' else ref[1]
+    return ref_type, ref[2]
 
 
-deploy(parse_git_ref(sys.argv[1]))
+if __name__ == '__main__':
+    # Get environment based on bare path
+    pwd = os.getcwd()
+    environment = pwd.split('/')[-2]
+    if environment not in ('dev', 'staging', 'production'):
+        abort('Unknown environment: {0}'.format(environment), 2)
+
+    # Parse git_ref being pushed
+    ref_type, ref_name = parse_git_ref(sys.argv[1])
+
+    # Production only deploys tags
+    if environment == 'production' and ref_type != 'tags':
+        abort('Only tags can be deployed to production', 1)
+
+    # Get a temp directoy and clone this repo in there
+    clone = tempfile.mkdtemp(prefix='clone')
+    print "DEBUG:", clone
+    os.chdir(clone)
+    try:
+        subprocess.check_call(['git', 'clone', pwd, '.'])
+    except subprocess.CalledProcessError, e:
+        abort('Error cloning the repo. Return code: {0}'.format(e.returncode), 3)
+
+    try:
+        subprocess.check_call(['git', 'checkout', ref_name])
+    except subprocess.CalledProcessError, e:
+        print 'DEBUG: git checkout %s' % ref_name, os.getcwd()
+        abort('Error checking out the given reference. Return code: {0}'.format(e.returncode), 4)
+
+    print '--- Deploying {0} to {1}'.format(green(ref_name), cyan(environment))
+    try:
+        subprocess.check_call(['fab', environment, 'deploy:"{0}"'.format(ref_name)])
+    except subprocess.CalledProcessError, e:
+        abort('Error on deployment. Return code: {0}'.format(e.returncode), 5)
