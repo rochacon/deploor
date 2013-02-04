@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+FIXME this still dont work. The cloned repository doesnt have the
+pushed changes yet
+"""
 import os
 import shutil
 import subprocess
@@ -32,6 +36,10 @@ def parse_git_ref(git_ref):
 
 
 if __name__ == '__main__':
+    # Remove GIT_DIR of os.environ, if present
+    if 'GIT_DIR' in os.environ:
+        os.environ.pop('GIT_DIR')
+
     # Get environment based on bare path
     pwd = os.getcwd()
     environment = pwd.split('/')[-2]
@@ -47,21 +55,21 @@ if __name__ == '__main__':
 
     # Get a temp directoy and clone this repo in there
     clone = tempfile.mkdtemp(prefix='clone')
-    print "DEBUG:", clone
+    io, iofile = tempfile.mkstemp(prefix='clonelog')
     os.chdir(clone)
     try:
-        subprocess.check_call(['git', 'clone', pwd, '.'])
+        subprocess.check_call(['git', 'clone', pwd, '.'], stdout=io, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError, e:
         abort('Error cloning the repo. Return code: {0}'.format(e.returncode), 3)
 
     try:
-        subprocess.check_call(['git', 'checkout', ref_name])
+        subprocess.check_call(['git', 'checkout', ref_name], stdout=io, stderr=subprocess.STDOUT)
+        subprocess.call(['cat', 'revision'])
     except subprocess.CalledProcessError, e:
-        print 'DEBUG: git checkout %s' % ref_name, os.getcwd()
         abort('Error checking out the given reference. Return code: {0}'.format(e.returncode), 4)
 
     print '--- Deploying {0} to {1}'.format(green(ref_name), cyan(environment))
     try:
-        subprocess.check_call(['fab', environment, 'deploy:"{0}"'.format(ref_name)])
+        subprocess.check_call(['fab', environment, 'deploy:"{0}"'.format(ref_name)], stdout=io, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError, e:
         abort('Error on deployment. Return code: {0}'.format(e.returncode), 5)
