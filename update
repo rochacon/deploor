@@ -64,7 +64,6 @@ if __name__ == '__main__':
 
     try:
         subprocess.check_call(['git', 'checkout', ref_name], stdout=io, stderr=subprocess.STDOUT)
-        subprocess.call(['cat', 'revision'])
     except subprocess.CalledProcessError, e:
         abort('Error checking out the given reference. Return code: {0}'.format(e.returncode), 4)
 
