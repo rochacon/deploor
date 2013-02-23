@@ -3,27 +3,29 @@
 package main
 
 import (
-    "github.com/rochacon/git-hooks-to-run-fabric/misc/util"
-    "os"
+	"fmt"
+	"github.com/rochacon/git-hooks-to-run-fabric/misc"
+	"os"
 )
 
 func main() {
-    // Remove GIT_DIR of OS environment, if present
-    if os.Getenv("GIT_DIR") != "" {
-        os.Setenv("GIT_DIR", "")
-    }
+	// Remove GIT_DIR of OS environment, if present
+	if os.Getenv("GIT_DIR") != "" {
+		os.Setenv("GIT_DIR", "")
+	}
 
-    // Get environment based on bare path
-    environment, err := util.GetEnvironmentFromPath(os.Getwd())
-    if err != nil {
-        util.Abort(fmt."Unknown environment: %s", environment, nil)
-    }
+	// Get environment based on bare path
+	pwd, _ := os.Getwd()
+	environment, err := util.GetEnvironmentFromPath(pwd)
+	if err != nil {
+		util.Abort(fmt.Sprintf("Unknown environment: %s", environment))
+	}
 
-    // Parse git_ref being pushed
-    ref_type, _ := util.ParseRef(os.Args[1])
+	// Parse git_ref being pushed
+	ref_type, _ := util.ParseRef(os.Args[1])
 
-    // Production only accepts tags
-    if environment == "production" and ref_type != "tags" {
-        util.Abort("Only tags can be deployed to production", nil)
-    }
+	// Production only accepts tags
+	if environment == "production" && ref_type != "tags" {
+		util.Abort("Only tags can be deployed to production")
+	}
 }
