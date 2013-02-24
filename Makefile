@@ -1,3 +1,9 @@
+build:
+	@mkdir -p dist/hooks
+	@go build -o dist/hooks/post-receive hooks/post-receive.go
+	@go build -o dist/hooks/update hooks/update.go
+	@chmod +x dist/hooks/*
+
 get: get-test get-prod
 
 get-test:
@@ -17,12 +23,6 @@ get-prod:
 test:
 	@go test -i ./...
 	@go test ./...
-
-all:
-	@mkdir -p dist/hooks
-	@go build -o dist/hooks/post-receive hooks/post-receive.go
-	@go build -o dist/hooks/update hooks/update.go
-	@chmod +x dist/hooks/*
 
 clean:
 	@rm -r dist/

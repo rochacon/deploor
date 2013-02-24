@@ -9,9 +9,21 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	// "strings"
+	"path"
+	"strings"
 )
 
+func MkTempDir(reference string) (string, error) {
+	folder := path.Join(os.TempDir(), reference)
+	if err := os.MkdirAll(folder, 0700); err != nil {
+		if os.IsExist(err) {
+			os.RemoveAll(path.Join(folder, "*"))
+		} else {
+			return folder, fmt.Errorf("Impossible to create temporary folder")
+		}
+	}
+	return folder, nil
+}
 
 func main () {
 	// Remove GIT_DIR of OS environment, if present
@@ -29,21 +41,26 @@ func main () {
 	// Read values from stdin
 	stdin := bufio.NewReader(os.Stdin)
 	line, err := stdin.ReadString('\n')
-	log.Println(line)
 	if err != nil {
 		log.Fatalf("Error reading from stdin")
 	}
-	// oldrev := line[0]
-	// newrev := line[1]
-	// git_reference := strings.TrimRight(line[2], "\n")
+	line_fields := strings.Split(line, " ")
+	// old_revision := line[0]
+	new_revision := line_fields[1]
+	git_reference := strings.TrimRight(line_fields[2], "\n")
 
 	// Parse git reference being pushed
-	_, ref_name := util.ParseRef("refs/head/master") //git_reference)
+	_, ref_name := util.ParseRef(git_reference)
 
 	// Create a temporary directory
-	tmpdir := "/tmp/blah"  // TODO make this dynamic
+	tmpdir, err := MkTempDir(new_revision)
+	if err != nil {
+		util.Abort(fmt.Sprintf("%s", err))
+	}
 	defer util.CleanUp(tmpdir)
-	os.Chdir(tmpdir)
+	if err := os.Chdir(tmpdir); err != nil {
+		util.Abort(fmt.Sprintf("%s", err))
+	}
 
 	// Clone the repository
 	git_clone := exec.Command("git", "clone", pwd, tmpdir)
@@ -52,15 +69,19 @@ func main () {
 	}
 
 	// Checkout the received reference
+	os.Setenv("GIT_DIR", path.Join(tmpdir, ".git"))  // FIXME os.Chdir should be enough
 	git_checkout := exec.Command("git", "checkout", ref_name)
 	if out, err := git_checkout.CombinedOutput(); err != nil {
 		util.Abort(fmt.Sprintf("Error checking out the given reference. Output:\n%s", out))
 	}
 
 	// Run Fabric
-	fmt.Println("--- Deploying %s to %s", ref_name, environment)
+	fmt.Printf("--- Deploying %s to %s\n", ref_name, environment)
+	// FIXME The command must stream its output, maybe os.StdoutPipe
 	fab := exec.Command("fab", environment, fmt.Sprintf("deploy:\"%s\"", ref_name))
-	if out, err := fab.CombinedOutput(); err != nil {
-		util.Abort(fmt.Sprintf("Error on deployment. Output:\n%s", out))
+	out, err := fab.CombinedOutput()
+	if err != nil {
+		log.Fatal(err, "\n", string(out))
 	}
+	fmt.Println(string(out))
 }

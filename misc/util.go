@@ -3,17 +3,19 @@ package util
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 )
 
 func CleanUp(clone string) {
 	if clone != "" {
-		// TODO delete clone folder
+		os.RemoveAll(clone)
 	}
 }
 
 func Abort(message string) {
 	log.Fatalf(message)
+	os.Exit(1)
 }
 
 // Return the reference type and name
