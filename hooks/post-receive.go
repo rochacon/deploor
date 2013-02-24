@@ -79,7 +79,7 @@ func main () {
 	// Run Fabric
 	log.Printf("--- Deploying %s to %s\n", ref_name, environment)
 	// FIXME The command must stream its output, maybe os.StdoutPipe
-	fab := exec.Command("fab", environment, fmt.Sprintf("deploy:\"%s\"", ref_name))
+	fab := exec.Command("fab", environment, fmt.Sprintf("deploy:'%s'", ref_name))
 	stdout, err := fab.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)
