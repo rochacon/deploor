@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -76,12 +77,33 @@ func main () {
 	}
 
 	// Run Fabric
-	fmt.Printf("--- Deploying %s to %s\n", ref_name, environment)
+	log.Printf("--- Deploying %s to %s\n", ref_name, environment)
 	// FIXME The command must stream its output, maybe os.StdoutPipe
 	fab := exec.Command("fab", environment, fmt.Sprintf("deploy:\"%s\"", ref_name))
-	out, err := fab.CombinedOutput()
+	stdout, err := fab.StdoutPipe()
 	if err != nil {
-		log.Fatal(err, "\n", string(out))
+		log.Fatal(err)
 	}
-	fmt.Println(string(out))
+
+	if err := fab.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	bufout := bufio.NewReader(stdout)
+	for {
+		line, err := bufout.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf(line)
+	}
+
+	if err := fab.Wait(); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Bye")
 }
