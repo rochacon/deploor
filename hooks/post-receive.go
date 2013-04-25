@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/rochacon/git-hooks-to-run-fabric/misc"
+	"github.com/rochacon/deploor/misc"
 	"bufio"
 	"fmt"
 	"log"

@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rochacon/git-hooks-to-run-fabric/misc"
+	"github.com/rochacon/deploor/misc"
 	"os"
 )
 
